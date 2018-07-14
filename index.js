@@ -1,6 +1,8 @@
 'use strict';
 
 var RSVP = require('rsvp');
+var path = require('path');
+var fs = require('fs');
 
 var DeployPluginBase = require('ember-cli-deploy-plugin');
 
@@ -12,6 +14,7 @@ module.exports = {
       name: options.name,
       defaultConfig: {
         type: 'file-hash',
+        tagVariable: null,
         separator: '+',
         filePattern: 'index.html',
         versionFile: 'package.json',
@@ -41,6 +44,7 @@ module.exports = {
           .then(function(results) {
             var data = results.data;
             data.scm = results.scm;
+            self._tagVersion(results.data.revisionKey);
             self.log('generated revision data for revision: `' + data.revisionKey + '`', { verbose: true });
             return data;
           })
@@ -48,6 +52,20 @@ module.exports = {
             return { revisionData: data };
           })
           .catch(this._errorMessage.bind(this));
+      },
+
+      _tagVersion: function(version) {
+        var tagVariable = this.readConfig('tagVariable');
+
+        if (!tagVariable) { return; }
+
+        var dir = this.readConfig('distDir');
+        var indexFilePath = path.join(dir, 'index.html');
+        var indexContent = fs.readFileSync(indexFilePath, { encoding: 'utf8' });
+
+        indexContent = indexContent.replace(tagVariable, version);
+
+        fs.writeFileSync(indexFilePath, indexContent);
       },
 
       _getData: function() {
